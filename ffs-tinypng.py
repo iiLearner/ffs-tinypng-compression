@@ -21,28 +21,44 @@ dotenv.load_dotenv()
 tinify.key = os.getenv("TINYFY_API_KEY")
 
 
+# pass image file path. tinfy will replace the current file with the resized one
 async def optimize(image_path: str):
-    source = tinify.from_file(image_path)
-    source.to_file(image_path)
+    try:
+        source = tinify.from_file(image_path)
+        source.to_file(image_path)
+    except Exception as e:
+        print(f"\nError occurred while processing file {image_path}. Error log: {str(e)}")
 
 
+# look up the specified path and count, find and allocate files. optionally also only get files with a certain size
 async def lookUp(path, min_size=None):
+    # initialize the counter at 0
     totalCount = 0
+    # create an empty list initialized at 0
     extensionCount = [0] * len(extensions)
+    # extensions string
     found_extensions = ""
+    # all the found files (their paths)
     files = []
+
+    # loop through all files of given extensions
     for i, extension in enumerate(extensions):
         for file_path in Path(path).rglob(extension):
+
+            # if min size isnt provided return all of them
             if min_size is None:
                 totalCount += 1
                 extensionCount[i] += 1
                 files.append(file_path)
+
+            # otherwise return the conditional files
             else:
                 if Path(file_path).stat().st_size > min_size:
                     totalCount += 1
                     extensionCount[i] += 1
                     files.append(file_path)
 
+    # populate the extensions string
     for i, extension in enumerate(extensions):
         found_extensions += f"{extension}: {extensionCount[i]} | "
 
@@ -66,7 +82,7 @@ async def main():
     # start the compression
     print(f"\nStarting compression..")
     for i, file_path in enumerate(files):
-        sys.stdout.write(f"\rCompressed {i} of {totalCount} images | {round(i / totalCount * 100, 2)}%")
+        sys.stdout.write(f"\rCompressed {i} of {totalCount} images | {round(i / totalCount * 100, 2)}% | Compressing file: {file_path}")
         await optimize(file_path)
 
     sys.stdout.write(f"\rCompressed {totalCount} of {totalCount} images | 100%")
@@ -91,7 +107,7 @@ async def main():
                 # alright lets start compressing..
                 print(f"\nFound {totalCount} more files to compress.. compressing (Attempt {j+1} of {MAX_COMPRESSING_ATTEMPTS})")
                 for i, file_path in enumerate(files):
-                    sys.stdout.write(f"\rCompressed {i} of {totalCount} images | {round(i / totalCount * 100, 2)}%")
+                    sys.stdout.write(f"\rCompressed {i} of {totalCount} images | {round(i / totalCount * 100, 2)}% | Compressing file: {file_path}")
                     await optimize(file_path)
                 sys.stdout.write(f"\rCompressed {totalCount} of {totalCount} images | 100%")
                 sys.stdout.flush()
@@ -99,6 +115,9 @@ async def main():
 
                 # more files to compress were found but we have no more compressing attempts left :/
                 print(f"\nAttention! {totalCount} more files to compress found but out of attempts ({MAX_COMPRESSING_ATTEMPTS})\n")
+                print(f"Following files were compressed yet their size is greater than {MAX_FILE_SIZE}M:\n")
+                for file_path in files:
+                    print(f"{file_path}\n")
         else:
 
             # if all files were compressed successfully before reaching max attempts then just exit the loop
@@ -108,4 +127,5 @@ async def main():
     print("\nCompression completed successfully!")
 
 if __name__ == "__main__":
+    # run main async
     asyncio.get_event_loop().run_until_complete(main())
