@@ -26,6 +26,7 @@ async def optimize(image_path: str):
     try:
         source = tinify.from_file(image_path)
         source.to_file(image_path)
+
     except Exception as e:
         print(f"\nError occurred while processing file {image_path}. Error log: {str(e)}")
 
